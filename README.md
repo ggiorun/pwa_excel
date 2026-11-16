@@ -1,94 +1,149 @@
 # Mini-Foglio di Calcolo (PWA)
 
-## 🔗 Sito pubblicato: **DA INSERIRE DOPO IL DEPLOY** → `https://TUO-USERNAME.github.io/mini-sheet-pwa/` (oppure `https://mini-sheet-pwa.vercel.app`)
+> ## 🔗 Sito pubblicato: **https://TUO-USERNAME.github.io/mini-sheet-pwa/**
+> *(sostituisci `TUO-USERNAME` dopo il deploy; se hai usato anche Vercel aggiungi qui il secondo link: `https://mini-sheet-pwa.vercel.app`)*
 
-Foglio di calcolo 100×100 (A1:CV100) con motore di formule scritto da zero, installabile come app e utilizzabile offline. HTML + CSS + JavaScript vanilla (moduli ES), Bootstrap 5.3.3 servito **in locale** da `vendor/` (nessuna richiesta a server esterni, così funziona anche offline).
+Foglio di calcolo semplificato, installabile e funzionante offline: griglia **100 × 100** (A1:CV100) con rendering virtualizzato, motore di formule scritto da zero (nessuna libreria di spreadsheet), ricalcolo incrementale, rilevamento di errori e riferimenti circolari. JavaScript vanilla + Bootstrap 5 (solo CSS). Nessun dato viene inviato a server esterni.
 
 ## Avvio in locale
 
-Il service worker richiede un server, non funziona da `file://`:
+Il service worker richiede `http://localhost` (non `file://`):
 
 ```bash
 cd mini-sheet-pwa
-python3 -m http.server 8080      # oppure: npx serve .  /  Live Server di VS Code
+python3 -m http.server 8080        # oppure: npx serve .  /  Live Server di VS Code
 # apri http://localhost:8080/
 ```
 
-Test automatici del motore: `node tests/engine.test.mjs` (Node ≥ 18).
+Test automatici del motore di calcolo (serve solo Node.js ≥ 18, nessuna installazione di pacchetti):
+
+```bash
+npm test          # = node tests/engine.test.mjs
+```
 
 ## Deploy
 
-Il progetto è un sito statico: nessuna build. Tutti i percorsi sono relativi (`./js/app.js`, `./sw.js`; nel manifest `start_url: "./"`, `scope: "./"`).
+**Piattaforma scelta: GitHub Pages** *(modifica questa sezione se usi Vercel o entrambe)*
 
-**GitHub Pages** (piattaforma scelta: _[completare: GitHub Pages / Vercel / entrambe]_)
-1. Crea il repository pubblico `mini-sheet-pwa` e carica i file: `git init && git add . && git commit -m "Prima versione" && git branch -M main && git remote add origin https://github.com/TUO-USERNAME/mini-sheet-pwa.git && git push -u origin main`
-2. Repository → *Settings → Pages* → *Deploy from a branch* → branch `main`, cartella `/ (root)` → *Save*.
-3. Dopo 1–2 minuti l'app è su `https://TUO-USERNAME.github.io/mini-sheet-pwa/`.
+1. Tutti i percorsi sono **relativi** (`./js/app.js`, `./sw.js`, `start_url: "./"`, `scope: "./"`): verificato anche servendo il sito da un sottopercorso (`/mini-sheet-pwa/`).
+2. Crea un repository **pubblico** `mini-sheet-pwa` e carica i file:
+   ```bash
+   git init && git add . && git commit -m "Prima versione"
+   git branch -M main
+   git remote add origin https://github.com/TUO-USERNAME/mini-sheet-pwa.git
+   git push -u origin main
+   ```
+3. Repository → **Settings → Pages → Source: Deploy from a branch → `main` / `(root)` → Save**.
+4. Dopo 1–2 minuti il sito è su `https://TUO-USERNAME.github.io/mini-sheet-pwa/`.
+5. Verifica **in finestra anonima**: Console senza 404; DevTools → Application → Service Workers = *activated and running*; Manifest senza errori; icona "Installa" nella barra degli indirizzi; Network → *Offline* → ricarica → l'app si apre.
 
-**Vercel** (opzionale, +bonus): *Add New → Project* → importa il repo → Framework Preset **Other**, Build Command e Output Directory vuoti → *Deploy*.
+**Alternativa Vercel** (sito statico): Add New → Project → scegli il repo → Framework Preset *Other*, Build Command vuoto, Output Directory vuoto (root) → Deploy → `https://<nome>.vercel.app`. Ogni `git push` su `main` ripubblica in automatico.
 
-Verifica finale dall'URL pubblico in finestra anonima: DevTools → *Application* → Service Workers (*activated and running*), Manifest senza errori, poi *Network → Offline* e ricarica.
+> Dopo ogni modifica a file dell'app, incrementa `CACHE_VERSION` in `sw.js`, altrimenti i browser continuano a servire la copia vecchia dalla cache.
 
 ## Funzioni implementate
 
-| Funzione | Esempio |
+| Area | Cosa c'è |
 |---|---|
-| SOMMA, MEDIA, MAX, MIN | `=SOMMA(A1:A5)` |
-| CONTA (celle numeriche), CONTA.VALORI (non vuote) | `=CONTA.VALORI(A1:A5)` |
-| SOMMA.SE, CONTA.SE, MEDIA.SE (anche con terzo argomento = intervallo somma) | `=SOMMA.SE(A1:A10;">5")` |
-| Extra: SE, CONCAT, ARROTONDA | `=SE(A1>5;"alto";"basso")` |
+| Griglia | 100 × 100 celle editabili (numeri, testo, formule con `=`), intestazioni A…CV e 1…100, evidenziazione di cella selezionata e di riga/colonna correnti, barra della formula con il contenuto grezzo, casella nome (digita `CV100` + Invio per saltarci) |
+| Tastiera | Frecce, Tab / Maiusc+Tab, Invio / Maiusc+Invio (conferma e passa alla cella successiva), Esc, F2, Canc, Pag↑/Pag↓, Home, Ctrl+Home/Fine; digitando si inizia a modificare |
+| Funzioni | `SOMMA`, `MEDIA`, `CONTA`, `CONTA.VALORI`, `SOMMA.SE`, `CONTA.SE`, `MEDIA.SE`, `MAX`, `MIN` |
+| Parser | riferimenti `A1` / `$A$1`, intervalli `A1:B5` su più colonne (anche scritti al contrario), operatori `+ − * / ^`, parentesi e precedenze, numeri con `.` o `,`, stringhe `"..."` |
+| Condizioni | `">5"`, `"<=3"`, `"<>x"`, `"=testo"`, numero secco, testo senza distinzione maiuscole/minuscole, jolly `*` e `?` |
+| Errori | `#DIV/0!`, `#VALORE!`, `#RIF!`, `#NOME?`, `#CIRC!` (e `#NUM!`); passando il mouse su una cella o selezionandola, la barra di stato spiega l'errore |
+| Ricalcolo | automatico, solo sulle celle dipendenti (vedi sotto) |
+| PWA | `manifest.json` (nome, icone 192/512, `theme_color`, `display: standalone`), service worker con App Shell in cache, pulsante *Installa app*, indicatore Online/Offline |
+| Responsive | Bootstrap 5; celle più alte su schermi touch; toolbar scorrevole; scroll orizzontale e verticale nativi; tocco su cella = seleziona, secondo tocco = modifica |
 
-- Riferimenti singoli (`A1`, anche `$A$1`) e intervalli su più righe/colonne (`A1:B5`).
-- Operatori `+ - * / ^`, meno unario, parentesi, confronti `= <> < > <= >=`. Separatore argomenti `;` (anche `,`); decimali con il punto nelle formule.
-- Criteri: `">5"`, `"<=3"`, `"<>0"`, `"=ciao"`, `"ciao"` (testo senza distinzione maiuscole/minuscole).
-- Errori: `#DIV/0!`, `#VALORE!`, `#RIF!` (cella fuori griglia), `#NOME?` (funzione/nome sconosciuto), `#CIRC!` (riferimento circolare). Gli errori si propagano alle celle dipendenti; passando il mouse su un errore si vede la spiegazione.
-- Interfaccia: intestazioni A…CV e 1…100, barra della formula (contenuto grezzo, modificabile), evidenziazione cella/riga/colonna correnti, frecce, Tab/Maiusc+Tab, Invio (conferma e scende), F2/doppio clic per modificare, digitare sovrascrive, Canc svuota, Pag↑/Pag↓, Home/Ctrl+Home. Su touch: tap per selezionare, secondo tap per modificare, oppure usare la barra della formula.
+Separatore degli argomenti: `;` (es. `=SOMMA.SE(A1:A10;">5")`). Accettato anche `,` tra argomenti non numerici.
 
-**Scelta di progetto:** un intervallo che contiene la cella della formula ignora quella cella. Per questo `E1 = SOMMA(A1:CV100)` dà `0` su griglia vuota (caso di test 5) invece di `#CIRC!`. I cicli veri (`A1→B1→A1`, `=C1` in C1) sono segnalati.
+### Struttura
+
+```
+/mini-sheet-pwa
+├── index.html            struttura della pagina
+├── manifest.json
+├── sw.js                 service worker (precache + cache-first con aggiornamento in background)
+├── css/style.css         layout griglia, intestazioni sticky, responsive
+├── js/app.js             UI, virtualizzazione, selezione/editing, toolbar, PWA
+├── js/engine.js          tokenizer + parser + valutatore + grafo delle dipendenze
+├── js/coordinates.js     conversione A1 ↔ indici
+├── icons/                icon-192.png, icon-512.png
+├── vendor/bootstrap.min.css   copia locale di Bootstrap 5.3.2 (licenza MIT)
+├── tests/engine.test.mjs 37 test automatici
+├── README.md
+└── AI_LOG.md
+```
 
 ## Strategia di virtualizzazione
 
-Il DOM contiene solo le celle visibili (~30×15 + 2 righe/colonne di margine, poche centinaia di elementi invece di 10.000). Un contenitore `#space` ha la dimensione totale della griglia, quindi la barra di scorrimento nativa rappresenta tutte le 100×100 celle; a ogni `scroll` (al massimo uno per frame, con `requestAnimationFrame`) si calcola dalla posizione di scorrimento quali righe/colonne sono visibili e si ridisegna solo se la finestra è cambiata. Le intestazioni stanno fuori dall'area scorrevole e vengono solo traslate con `transform`. Alternative valutate: `content-visibility: auto` (lascia comunque 10.000 nodi nel DOM) e un pool di nodi riciclati (più veloce ma più complesso: con poche centinaia di celle `innerHTML` basta).
+**Virtualizzazione del DOM con scrollbar native.** Un contenitore (`#sizer`) ha le dimensioni dell'intero foglio, quindi barre di scorrimento, inerzia touch e scroll sono quelli veri del browser. Dentro vive solo la *finestra visibile*: ~30 righe × ~15 colonne più 3 righe/colonne di margine (≈ 430–480 `<div>` invece di 10.000). Ogni cella è un `div` con `left/top` assoluti calcolati **una sola volta** alla creazione; a ogni scroll (coalescato con `requestAnimationFrame`) si creano solo i `div` che entrano e si rimuovono quelli che escono, con un solo inserimento nel DOM tramite `DocumentFragment`. Le intestazioni A…CV / 1…100 usano `position: sticky` (restano visibili senza JavaScript); evidenziazione di riga/colonna e cella selezionata sono overlay mossi con `transform`, indipendenti dalle celle presenti. I click non hanno un listener per cella: la cella è calcolata dalle coordinate del puntatore.
 
-## Dipendenze e ricalcolo
+**Alternative valutate.** (1) 10.000 `<td>` nel DOM: caricamento e scroll lenti su dispositivi di fascia media. (2) `content-visibility: auto`: semplice, ma il DOM resta enorme e non aiuta a creare i nodi. (3) `<canvas>`: velocissimo, ma accessibilità, editing in-cella e selezione testo vanno riscritti. (4) Scroll "finto" con trasformazioni e scrollbar custom: il compositor del browser non aiuta più e il touch scroll diventa fragile. Scelta: DOM virtualizzato con scroll nativo, il compromesso migliore tra fluidità, semplicità e usabilità su mobile.
 
-Per ogni formula si salvano le celle e gli intervalli letti. Quando una cella cambia si visita il grafo **inverso** (chi usa questa cella, anche indirettamente) e si ricalcolano solo quelle; i valori sono in cache e la valutazione ricorsiva rispetta l'ordine. Le celle vuote di un intervallo non vengono calcolate. I cicli si rilevano segnando le celle "in valutazione". La barra di stato mostra quante celle sono state ricalcolate e in quanti ms.
+## Dipendenze e ricalcolo (come si evitano ricalcoli inutili)
+
+- Ogni formula, alla scrittura, viene analizzata una sola volta (AST in cache) e registra **cosa legge**: celle singole in `dependents[cella] = {formule}`; intervalli in un indice per colonna (`colIndex`). Così `=SOMMA(A1:CV100)` non crea 10.000 archi.
+- Quando una cella cambia: si trovano (a catena) le sole formule che ne dipendono → si marcano *stale* → si valutano con memoizzazione (leggere una cella stale la calcola al volo: ogni cella è calcolata una volta sola, dopo le sue dipendenze).
+- Una cella letta mentre è già in valutazione è un ciclo → `#CIRC!` (vale per `=C1` in C1 e per catene `A1→B1→A1`). Spezzando il ciclo, le celle tornano valide.
+- Le funzioni scorrono solo le celle **non vuote** di un intervallo (se l'intervallo è più grande del foglio popolato, scorrono le celle esistenti): `=SOMMA(A1:CV100)` su griglia vuota costa zero.
+- Il ricalcolo parte alla **conferma** (Invio/Tab/uscita dalla cella), non a ogni tasto, quindi digitare non ricalcola nulla; il salvataggio su `localStorage` è in debounce (400 ms). La barra di stato mostra *"Ricalcolate N formule in X ms"*.
 
 ## Casi di test
 
-Test eseguiti con `node tests/engine.test.mjs` (37 verifiche, tutte superate) e con un controllo dell'interfaccia in jsdom. I punti di sola verifica manuale nel browser vanno completati da voi.
+Eseguiti in questa sessione: motore con `npm test` (37 test, Node 22) e interfaccia con un test end-to-end in Chromium headless su `http://localhost` (anche da sottopercorso `/mini-sheet-pwa/`). **I punti 9 e 10 vanno completati sull'URL pubblico dopo il deploy.**
 
 | # | Caso | Esito |
 |---|---|---|
-| 1 | A1=5, A2=10, A3=`=SOMMA(A1:A2)` | ✅ 15 (test automatico) |
-| 2 | B1=0, B2=`=A1/B1` | ✅ `#DIV/0!` |
-| 3 | C1=`=C1` (e catena A1→B1→A1) | ✅ `#CIRC!` |
-| 4 | D1=`=CONTA.SE(A1:A10;">5")`, valori misti | ✅ 3 |
-| 5 | E1=`=SOMMA(A1:CV100)` su griglia vuota | ✅ 0, nessun crash |
-| 6 | Scorrimento riga 1→100 e ritorno | ⬜ da verificare nel browser |
-| 7 | Modifica cella con 100 dipendenze | ✅ motore: 101 celle in ~11 ms (Node); ⬜ confermare nel browser con il pulsante *Test 100 dipendenze* |
-| 8 | Rete disattivata → ricarica offline | ⬜ da verificare dopo il deploy |
-| 9 | URL pubblico in finestra anonima, installazione, offline | ⬜ da verificare dopo il deploy |
-| 10 | Nessun 404 in console sull'URL pubblico | ⬜ da verificare dopo il deploy |
+| 1 | A1=5, A2=10, A3==SOMMA(A1:A2) | ✅ mostra **15** |
+| 2 | B1=0, B2==A1/B1 | ✅ mostra **#DIV/0!** |
+| 3 | C1==C1 (e catena A1→B1→A1) | ✅ **#CIRC!** su tutte le celle del ciclo |
+| 4 | D1==CONTA.SE(A1:A10;">5") con valori misti (3, 7, 12, "testo", 8, 1, 5, 10, 15) | ✅ **5** (anche SOMMA.SE = 52 e MEDIA.SE = 10,4) |
+| 5 | E1==SOMMA(A1:CV100) su griglia vuota | ✅ **0**, nessun crash (vedi nota sotto) |
+| 6 | Scorrimento riga 1 → 100 / colonna A → CV e ritorno | ✅ 122 passi (61 all'andata + 61 al ritorno, fino a riga 100 / colonna CV) in Chromium headless su desktop: frame sempre al passo del display (p50 16,7 ms, p95 16,8 ms, max 16,8 ms ≈ 60 fps); nel DOM restano ~430–480 celle. Da riprovare a mano su un telefono reale |
+| 7 | Cella con 100 dipendenze (pulsante *Test 100 dipendenze*) | ✅ 100 formule ricalcolate in **≈ 0,1–0,2 ms** nel browser (≈ 3 ms nel test Node a freddo); limite 300 ms |
+| 8 | Rete disattivata → ricarica | ✅ l'app si apre dalla cache e si può modificare (verificato con rete emulata offline, anche da sottopercorso) |
+| 9 | URL pubblico in finestra anonima: app, installazione, offline | ⬜ **da verificare dopo il deploy** (in locale: nessun errore di installabilità secondo Chrome DevTools Protocol, manifest senza errori) |
+| 10 | Nessun 404 in console sull'URL pubblico | ⬜ **da verificare dopo il deploy** (in locale e da sottopercorso: 0 richieste con errore, 0 messaggi in console) |
 
-## Funzionalità extra
+Altri numeri misurati: caricamento iniziale ≈ 140 ms in locale (headless, evento `load`); riempimento di 9.900 celle + 2 formule su tutto l'intervallo: modifica di una cella → 1 ms. **Lighthouse non è stato eseguito qui**: fallo dall'URL pubblico (DevTools → Lighthouse → *Progressive Web App*) e incolla il punteggio in questa tabella.
 
-SE, CONCAT, ARROTONDA; salvataggio automatico in `localStorage`; esportazione CSV (separatore `;`); pulsanti *Esempi* e *Test 100 dipendenze*; indicatore online/offline; pulsante *Installa app*; Bootstrap servito localmente. Non implementato: inserimento/eliminazione di righe e colonne.
+> **Nota sul caso 5.** La cella E1 si trova *dentro* A1:CV100. Excel in questo caso segnala un avviso di riferimento circolare; qui, per ottenere 0 come richiesto dal test, una formula che contiene sé stessa in un intervallo **ignora la propria cella** durante la somma. Un ciclo vero (es. B5 che legge E1 mentre E1 somma A1:CV100) resta segnalato come `#CIRC!`.
+
+## Funzionalità extra (bonus)
+
+- `SE`, `CONCAT`, `ARROTONDA`, operatore `&`, confronti, `VERO`/`FALSO`, alias inglesi (`SUM`, `IF`, `COUNTIF`…)
+- Salvataggio automatico su `localStorage`
+- Esportazione **CSV** (valori calcolati, separatore `;`, UTF-8 con BOM)
+- **Inserimento/eliminazione di righe e colonne** con riscrittura delle formule (i riferimenti a celle eliminate diventano `#RIF!`, gli intervalli si adattano); la griglia non scende mai sotto 100×100 e arriva al massimo a 1000×702
+- Esempi precaricabili (*Esempi*) e test delle 100 dipendenze con misura del tempo (*Test 100 dipendenze*)
+- 37 test automatici (`npm test`)
+- ⬜ Doppio deploy GitHub Pages + Vercel: da fare se vuoi il bonus
+
+## Note tecniche e scelte
+
+- **Bootstrap in locale.** `vendor/bootstrap.min.css` è Bootstrap **5.3.2** (MIT) in una build tema "Cerulean" di Bootswatch: l'ambiente di sviluppo non aveva accesso a internet per scaricare la build ufficiale. Si usano solo componenti neutri (bottoni, campi, badge, utility); se preferisci la build ufficiale, sostituisci il file (stesso nome) e incrementa `CACHE_VERSION`. Tenerlo in locale evita richieste a server esterni e permette l'uso offline.
+- **Errore circolare esteso.** Le celle che dipendono da una cella circolare mostrano anch'esse `#CIRC!` (l'errore si propaga come qualunque altro).
+- **Celle vuote.** `=A1` con A1 vuota vale 0; `CONTA.SE(…;"<>x")` conta anche le celle vuote (come Excel).
+- **Limiti noti.** Nessun annulla/ripeti, copia/incolla di intervalli, selezione multipla, né riferimenti ad altri fogli.
 
 ## Difficoltà incontrate e come risolte
 
-- **Test 5 vs riferimenti circolari:** `E1` è dentro `A1:CV100`, quindi alla lettera sarebbe circolare. Soluzione: l'intervallo ignora la cella della formula (vedi *Scelta di progetto*).
-- **Bootstrap offline:** la versione da CDN non funziona offline e viola «nessun dato a server esterni»; è stato scaricato in `vendor/` e il commento `sourceMappingURL` è stato rimosso per evitare un 404 nella console.
-- **Dimensioni celle su smartphone:** cambiano con una media query, quindi `app.js` le legge dalle variabili CSS invece di duplicarle.
-- _[aggiungere le difficoltà reali che incontrate nel deploy]_
+*(Da completare con la vostra esperienza reale; qui i punti tecnici emersi durante lo sviluppo.)*
+
+- **Test 5 (E1 dentro il proprio intervallo):** letteralmente è un riferimento circolare. Soluzione: la cella-formula viene saltata quando scorre un intervallo che la contiene (vedi nota).
+- **Intestazioni con virtualizzazione:** invece di sincronizzarle via JavaScript allo scroll (ritardo di un frame), si usano `position: sticky` con intestazioni virtualizzate a loro volta.
+- **Dipendenze su intervalli grandi:** un arco per cella avrebbe dato 10.000 archi per `A1:CV100`; risolto con l'indice per colonna.
+- **Deploy / percorsi / scope / cache:** ⬜ *(descrivete qui i problemi reali incontrati su GitHub Pages o Vercel)*
 
 ## Domande di riflessione
 
-1. **Codice scritto da voi / dall'AI e verifica.** Il codice di questa versione è stato generato da Claude (Anthropic) a partire dalla traccia. Verifica: 37 test automatici del motore, smoke test dell'interfaccia, prove manuali. _[Completare: cosa avete scritto, letto e modificato voi.]_
-2. **Prompt più efficaci.** _[Da completare con i vostri prompt: vedi AI_LOG.md.]_
-3. **Cosa ha sbagliato l'AI.** Durante lo sviluppo: aspettative di test errate (`-2^2`, decimali con la virgola nelle formule) e un test che scriveva fuori griglia, scoperti eseguendo i test. _[Aggiungere eventuali altri casi.]_
-4. **Virtualizzazione.** Vedi sezione dedicata (finestra visibile calcolata dallo scroll, nativa e senza librerie).
-5. **Dipendenze.** Vedi *Dipendenze e ricalcolo*: grafo inverso, solo le celle toccate, cache, celle vuote saltate.
-6. **Piattaforma e problemi di deploy.** _[Da completare dopo il deploy: percorsi, scope, cache, HTTPS.]_
-7. **Verifica dall'URL pubblico.** _[Da completare: finestra anonima, Application → Service Workers, Network → Offline, Lighthouse.]_
-8. **Cosa cambiereste.** _[Da completare.]_
+1. **Quale parte del codice hai scritto tu e quale è stata generata dall'AI? Come hai verificato la correttezza?**
+   ⬜ *Da compilare a cura degli studenti.* Nota di trasparenza: il codice di questa versione è stato generato da Claude in un'unica sessione a partire dal testo della prova; la verifica automatica è descritta in "Casi di test". Indicate cosa avete letto, capito, modificato e testato voi.
+2. **Quali prompt sono stati più efficaci? Perché?** ⬜ *Da compilare (vedi `AI_LOG.md`).*
+3. **Cosa ha fatto l'AI che hai dovuto correggere? Perché?** ⬜ *Da compilare.*
+4. **Quale strategia di virtualizzazione hai scelto e perché? Quali alternative hai valutato?** → vedi sezione *Strategia di virtualizzazione* (DOM virtualizzato con scroll nativo; scartati: 10.000 `<td>`, `content-visibility`, canvas, scroll simulato).
+5. **Come hai gestito le dipendenze tra celle per evitare ricalcoli inutili su 10.000 celle?** → vedi sezione *Dipendenze e ricalcolo* (grafo inverso per celle singole, indice per colonna per gli intervalli, ricalcolo solo delle celle dipendenti con memoizzazione, scansione solo delle celle non vuote).
+6. **Quale piattaforma hai scelto per il deploy e perché? Quali problemi hai incontrato (percorsi, scope del service worker, cache, HTTPS)?** ⬜ *Da compilare dopo il deploy.*
+7. **Come hai verificato che la PWA funzioni dall'URL pubblico e non solo in locale?** ⬜ *Da compilare. Procedura: finestra anonima → Console senza 404 → Application → Service Workers "activated" → Manifest senza errori → installazione → Network "Offline" + ricarica → Lighthouse.*
+8. **Cosa cambieresti se dovessi rifare la prova?** ⬜ *Da compilare.*

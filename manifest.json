@@ -2,16 +2,16 @@
   "id": "./",
   "name": "Mini-Foglio di Calcolo",
   "short_name": "Mini-Foglio",
-  "description": "Foglio di calcolo 100×100 con formule, utilizzabile offline.",
+  "description": "Foglio di calcolo 100×100 con formule, installabile e funzionante offline.",
   "lang": "it",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "theme_color": "#1d6f42",
   "background_color": "#ffffff",
+  "theme_color": "#1b6b5a",
   "icons": [
-    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }

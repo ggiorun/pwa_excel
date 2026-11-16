@@ -1,50 +1,87 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Mini-Foglio di Calcolo</title>
-  <meta name="description" content="Foglio di calcolo 100×100 con formule, installabile e utilizzabile offline.">
-  <meta name="theme-color" content="#1d6f42">
-  <!-- Tutti i percorsi sono RELATIVI (./...) per funzionare in locale, su GitHub Pages (sottopercorso) e su Vercel -->
+  <meta name="description" content="Foglio di calcolo 100×100 con formule, installabile come app e funzionante offline.">
+  <meta name="theme-color" content="#1b6b5a">
+
+  <!-- PWA: tutti i percorsi sono RELATIVI (./...) per funzionare anche in un sottopercorso (GitHub Pages) -->
   <link rel="manifest" href="./manifest.json">
-  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <!-- Bootstrap 5 (copia locale in ./vendor, così funziona anche offline e non contatta server esterni) -->
   <link rel="stylesheet" href="./vendor/bootstrap.min.css">
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
-  <nav class="appbar d-flex flex-wrap align-items-center gap-2 px-2 py-1">
-    <strong class="me-1">Mini-Foglio</strong>
-    <button id="btnDemo" class="btn btn-sm btn-light" type="button" title="Carica i casi di test 1-4 nelle colonne A-D">Esempi</button>
-    <button id="btnStress" class="btn btn-sm btn-light" type="button" title="Crea 100 formule che dipendono da Z1">Test 100 dipendenze</button>
-    <button id="btnCsv" class="btn btn-sm btn-light" type="button">Esporta CSV</button>
-    <button id="btnClear" class="btn btn-sm btn-outline-light" type="button">Svuota foglio</button>
-    <button id="btnInstall" class="btn btn-sm btn-warning d-none" type="button">Installa app</button>
-  </nav>
 
-  <div class="formula-bar input-group input-group-sm">
-    <span id="cellName" class="input-group-text cell-name">A1</span>
-    <span class="input-group-text fst-italic">fx</span>
-    <input id="formulaBar" class="form-control" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Barra della formula">
+  <!-- Barra degli strumenti: scorre in orizzontale su schermi stretti -->
+  <header class="toolbar d-flex align-items-center gap-2 px-2 py-1 border-bottom">
+    <strong class="brand">Mini-Foglio</strong>
+    <div class="tools d-flex flex-nowrap gap-1 flex-grow-1">
+      <button id="btnNew" class="btn btn-sm btn-outline-secondary" type="button" title="Svuota il foglio">Nuovo</button>
+      <button id="btnDemo" class="btn btn-sm btn-outline-secondary" type="button" title="Carica formule d'esempio">Esempi</button>
+      <button id="btnPerf" class="btn btn-sm btn-outline-secondary" type="button" title="Cambia una cella da cui dipendono 100 formule e misura il ricalcolo">Test 100 dipendenze</button>
+      <span class="tools-sep" aria-hidden="true"></span>
+      <button id="btnRowAdd" class="btn btn-sm btn-outline-secondary" type="button" title="Inserisci una riga sopra la cella selezionata">+ Riga</button>
+      <button id="btnRowDel" class="btn btn-sm btn-outline-secondary" type="button" title="Elimina la riga della cella selezionata">− Riga</button>
+      <button id="btnColAdd" class="btn btn-sm btn-outline-secondary" type="button" title="Inserisci una colonna a sinistra della cella selezionata">+ Colonna</button>
+      <button id="btnColDel" class="btn btn-sm btn-outline-secondary" type="button" title="Elimina la colonna della cella selezionata">− Colonna</button>
+      <span class="tools-sep" aria-hidden="true"></span>
+      <button id="btnCsv" class="btn btn-sm btn-outline-secondary" type="button" title="Scarica i valori in formato CSV">Esporta CSV</button>
+      <button id="btnHelp" class="btn btn-sm btn-outline-secondary" type="button" title="Scorciatoie e funzioni">Aiuto</button>
+      <button id="btnInstall" class="btn btn-sm btn-success" type="button" hidden>Installa app</button>
+    </div>
+  </header>
+
+  <!-- Barra della formula: casella nome (A1) + contenuto grezzo della cella selezionata -->
+  <div class="formulabar d-flex align-items-center gap-2 px-2 py-1 border-bottom">
+    <input id="nameBox" class="form-control form-control-sm" type="text" value="A1" aria-label="Cella selezionata (digita un indirizzo, es. CV100, e premi Invio)" autocomplete="off" spellcheck="false">
+    <span class="fx" aria-hidden="true">fx</span>
+    <input id="formulaBar" class="form-control form-control-sm flex-grow-1" type="text" aria-label="Contenuto della cella" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
   </div>
 
-  <main id="sheet">
-    <div id="corner"></div>
-    <div id="colhdr"><div id="colhdrIn"></div></div>
-    <div id="rowhdr"><div id="rowhdrIn"></div></div>
-    <div id="scroller" tabindex="0" aria-label="Griglia del foglio di calcolo">
-      <div id="space">
-        <div id="cells"></div>
-        <input id="editor" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" hidden>
+  <!--
+    Griglia VIRTUALIZZATA: #sizer ha le dimensioni dell'intero foglio (così le barre di scorrimento sono
+    quelle vere), ma in #cells esistono solo i <div> delle celle visibili nel viewport (vedi js/app.js).
+  -->
+  <main id="viewport" tabindex="0" role="grid" aria-label="Foglio di calcolo">
+    <div id="sizer">
+      <div id="colHdrs"><div id="corner"></div><div id="colHdrInner"></div></div>
+      <div id="rowHdrs"></div>
+      <div id="cells">
+        <div id="rowBand"></div>
+        <div id="colBand"></div>
+        <div id="selBox"></div>
+        <input id="editor" type="text" hidden aria-label="Modifica cella" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
     </div>
   </main>
 
-  <footer id="status" class="d-flex justify-content-between px-2">
-    <span id="statusMsg">Pronto</span>
-    <span id="netState"></span>
+  <footer class="statusbar d-flex align-items-center gap-3 px-2 py-1 border-top">
+    <span id="statusCell" class="text-truncate">A1: vuota</span>
+    <span id="statusPerf" class="text-truncate ms-auto text-secondary"></span>
+    <span id="netBadge" class="badge text-bg-success">Online</span>
   </footer>
+
+  <dialog id="help">
+    <h2 class="h5">Come si usa</h2>
+    <p class="mb-2"><strong>Tastiera.</strong> Frecce per spostarsi; scrivi per modificare la cella; <kbd>F2</kbd> modifica il contenuto esistente; <kbd>Invio</kbd> conferma e scende (<kbd>Maiusc</kbd>+<kbd>Invio</kbd> sale); <kbd>Tab</kbd> conferma e va a destra; <kbd>Esc</kbd> annulla; <kbd>Canc</kbd> svuota la cella; <kbd>Pag↑</kbd>/<kbd>Pag↓</kbd> scorrono di una pagina; <kbd>Home</kbd> inizio riga; <kbd>Ctrl</kbd>+<kbd>Home</kbd>/<kbd>Fine</kbd> prima/ultima cella usata. Su touch: tocca una cella per selezionarla, toccala di nuovo per modificarla.</p>
+    <p class="mb-2"><strong>Formule.</strong> Iniziano con <code>=</code>; argomenti separati da <code>;</code>. Operatori <code>+ − * / ^ &amp;</code> e confronti <code>= &lt;&gt; &lt; &gt; &lt;= &gt;=</code>, con le parentesi.</p>
+    <ul class="mb-2 small">
+      <li><code>=SOMMA(A1:A5)</code>, <code>=MEDIA(A1:A5)</code>, <code>=MAX(A1:A5)</code>, <code>=MIN(A1:A5)</code></li>
+      <li><code>=CONTA(A1:A5)</code> (celle numeriche), <code>=CONTA.VALORI(A1:A5)</code> (celle non vuote)</li>
+      <li><code>=SOMMA.SE(A1:A10;"&gt;5")</code>, <code>=CONTA.SE(A1:A10;"&gt;5")</code>, <code>=MEDIA.SE(A1:A10;"&gt;5")</code> (anche con un terzo argomento: intervallo da sommare/mediare)</li>
+      <li>Extra: <code>=SE(A1&gt;5;"alto";"basso")</code>, <code>=CONCAT(A1;" ";B1)</code>, <code>=ARROTONDA(A1;2)</code></li>
+    </ul>
+    <p class="mb-3"><strong>Errori.</strong> <code>#DIV/0!</code> divisione per zero · <code>#VALORE!</code> tipo non valido o sintassi errata · <code>#RIF!</code> riferimento non valido · <code>#NOME?</code> funzione sconosciuta · <code>#CIRC!</code> riferimento circolare. Passa il mouse su una cella con errore (o selezionala) per leggere la spiegazione.</p>
+    <form method="dialog" class="text-end"><button class="btn btn-sm btn-primary">Chiudi</button></form>
+  </dialog>
+
+  <noscript><p class="p-3">Questa app richiede JavaScript.</p></noscript>
 
   <script type="module" src="./js/app.js"></script>
 </body>

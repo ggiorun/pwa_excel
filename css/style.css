@@ -1,65 +1,117 @@
-/* Dimensioni delle celle: devono coincidere con le costanti in js/app.js */
+/*
+ * style.css — layout dell'app. Bootstrap (./vendor/bootstrap.min.css) fornisce bottoni, form e utility;
+ * qui c'è tutto ciò che riguarda la griglia virtualizzata.
+ *
+ * Misure in variabili CSS: app.js le legge all'avvio, quindi i media query qui sotto
+ * cambiano anche i calcoli di virtualizzazione (celle un po' più alte su touch).
+ */
 :root {
-  --cw: 96px; --rh: 28px; --hh: 28px; --rw: 48px;
-  --green: #1d6f42; --green-soft: #dcefe3; --line: #d4d9d6; --hdr: #eef1ef;
+  --ink: #1d2321;
+  --muted: #5b665f;
+  --head: #eef2ee;
+  --head-active: #cfe6dc;
+  --line: #d5dbd5;
+  --accent: #1b6b5a;
+  --band: rgba(27, 107, 90, 0.07);
+  --err: #b3261e;
+
+  --col-w: 96px;   /* larghezza cella */
+  --row-h: 28px;   /* altezza cella */
+  --rh-w: 52px;    /* larghezza intestazione di riga (1…100) */
+  --ch-h: 28px;    /* altezza intestazione di colonna (A…CV) */
 }
+@media (max-width: 576px), (pointer: coarse) {
+  :root { --col-w: 88px; --row-h: 36px; --rh-w: 42px; --ch-h: 34px; }
+}
+
 html, body { height: 100%; margin: 0; }
 body {
-  display: flex; flex-direction: column; height: 100dvh; overflow: hidden;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  background: #fff; color: #1b1f1d;
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+  font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink); background: #fff;
+  overscroll-behavior: none;
+  padding-top: env(safe-area-inset-top);
 }
-.appbar { background: var(--green); color: #fff; }
-.formula-bar { flex: none; }
-.formula-bar .form-control { font-family: ui-monospace, Menlo, Consolas, monospace; }
-.cell-name { min-width: 3.6rem; justify-content: center; font-weight: 600; }
 
-/* Griglia: angolo + intestazioni colonne/righe + area scorrevole */
-#sheet {
-  flex: 1; min-height: 0; display: grid;
-  grid-template-columns: var(--rw) 1fr; grid-template-rows: var(--hh) 1fr;
+/* ── barre superiori e inferiore ── */
+.toolbar, .formulabar, .statusbar { flex: 0 0 auto; background: #fafbfa; }
+.brand { color: var(--accent); white-space: nowrap; }
+.tools { overflow-x: auto; scrollbar-width: none; }
+.tools::-webkit-scrollbar { display: none; }
+.tools .btn { white-space: nowrap; }
+.tools-sep { flex: 0 0 1px; background: var(--line); margin: 2px 4px; }
+.formulabar .fx { font-style: italic; color: var(--muted); }
+#nameBox { width: 5.5rem; flex: 0 0 auto; text-align: center; font-weight: 600; }
+.statusbar { font-size: 12px; color: var(--muted); padding-bottom: calc(0.25rem + env(safe-area-inset-bottom)) !important; }
+#statusCell { flex: 0 1 auto; max-width: 60%; }
+#statusCell.has-error { color: var(--err); font-weight: 600; }
+#netBadge { flex: 0 0 auto; }
+
+/* ── area scorrevole ── */
+#viewport {
+  position: relative; flex: 1 1 auto; min-height: 0;
+  overflow: auto; background: #fff;
+  -webkit-overflow-scrolling: touch;
+  outline: none;
 }
-#corner, #colhdr, #rowhdr { background: var(--hdr); overflow: hidden; position: relative; }
-#corner { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-#colhdr, #rowhdr { user-select: none; }
-#scroller { overflow: auto; position: relative; outline: none; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-#space { position: relative; width: calc(var(--cw) * 100); height: calc(var(--rh) * 100); }
-#cells { position: absolute; inset: 0; }
+#viewport:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+#sizer { position: relative; }   /* larghezza/altezza impostate da app.js = dimensione reale del foglio */
 
-/* Virtualizzazione: solo le celle visibili esistono nel DOM, posizionate in modo assoluto */
-.cell {
-  position: absolute; box-sizing: border-box; width: var(--cw); height: var(--rh);
-  padding: 0 6px; line-height: calc(var(--rh) - 1px); white-space: nowrap; overflow: hidden; text-overflow: clip;
+/* intestazioni "appiccicose": restano visibili mentre si scorre, senza JavaScript */
+#colHdrs { position: sticky; top: 0; z-index: 5; height: var(--ch-h); background: var(--head); }
+#corner {
+  position: sticky; left: 0; z-index: 6;
+  width: var(--rh-w); height: var(--ch-h); box-sizing: border-box;
+  background: var(--head); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+#colHdrInner { position: absolute; left: var(--rh-w); top: 0; right: 0; height: 100%; }
+#rowHdrs { position: sticky; left: 0; z-index: 4; width: var(--rh-w); background: var(--head); }
+
+.ch, .rh {
+  position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+  background: var(--head); color: var(--muted); font-weight: 600; user-select: none; cursor: default;
   border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
 }
-.cell.in-row, .cell.in-col { background: #f3f8f5; }
-.cell.sel { background: #fff; outline: 2px solid var(--green); outline-offset: -2px; z-index: 1; }
-.cell.num { text-align: right; }
-.cell.err { text-align: center; color: #b3261e; font-weight: 600; }
-.cell.bool { text-align: center; }
-.h {
-  position: absolute; box-sizing: border-box; text-align: center; line-height: var(--hh);
-  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); color: #4a524e;
-}
-#colhdrIn .h { width: var(--cw); height: var(--hh); }
-#rowhdrIn .h { width: var(--rw); height: var(--rh); line-height: var(--rh); }
-.h.active { background: var(--green-soft); color: var(--green); font-weight: 700; }
+.ch { top: 0; width: var(--col-w); height: 100%; }
+.rh { left: 0; width: 100%; height: var(--row-h); }
+.ch.active, .rh.active { background: var(--head-active); color: var(--accent); }
 
+/* ── celle ── */
+#cells { position: absolute; left: var(--rh-w); top: var(--ch-h); }
+.cell {
+  position: absolute; box-sizing: border-box;
+  width: var(--col-w); height: var(--row-h); padding: 0 6px;
+  line-height: calc(var(--row-h) - 1px);
+  background: #fff; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums; user-select: none;
+}
+.cell.n { text-align: right; }
+.cell.b { text-align: center; }
+.cell.e { text-align: center; color: var(--err); font-weight: 600; }
+
+/* evidenziazione: riga e colonna correnti (fasce trasparenti) + cella selezionata */
+#rowBand, #colBand { position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; background: var(--band); }
+#rowBand { width: 100%; height: var(--row-h); }
+#colBand { height: 100%; width: var(--col-w); }
+#selBox {
+  position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; box-sizing: border-box;
+  width: var(--col-w); height: var(--row-h); border: 2px solid var(--accent);
+}
 #editor {
-  position: absolute; z-index: 5; box-sizing: border-box; height: var(--rh); min-width: var(--cw);
-  padding: 0 6px; border: 2px solid var(--green); outline: none; background: #fff;
-  font: inherit; font-family: ui-monospace, Menlo, Consolas, monospace;
+  position: absolute; z-index: 4; box-sizing: border-box; height: var(--row-h);
+  margin: 0; padding: 0 6px; font: inherit; color: var(--ink); background: #fff;
+  border: 2px solid var(--accent); border-radius: 0; outline: none;
 }
-#editor[hidden] { display: none; }
 
-#status { flex: none; background: var(--hdr); border-top: 1px solid var(--line); font-size: 12px; line-height: 22px; color: #4a524e; }
-#netState.offline { color: #b3261e; font-weight: 600; }
-
-/* Smartphone: celle un po' più grandi per il tocco, barra compatta */
-@media (max-width: 576px) {
-  :root { --cw: 88px; --rh: 34px; --hh: 30px; --rw: 40px; }
-  body { font-size: 15px; }
-  .appbar strong { width: 100%; }
+/* ── finestra di aiuto ── */
+dialog#help {
+  width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; color: var(--ink);
 }
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+dialog#help::backdrop { background: rgba(0, 0, 0, 0.35); }
+dialog#help kbd { background: var(--head); color: var(--ink); border: 1px solid var(--line); padding: 0 4px; }
+
+/* iOS: evita lo zoom automatico quando si tocca un campo di testo */
+@media (pointer: coarse) { input.form-control, #editor { font-size: 16px; } }
