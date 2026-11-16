@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mini-Foglio di Calcolo</title>
+  <meta name="description" content="Foglio di calcolo 100×100 con formule, installabile e utilizzabile offline.">
+  <meta name="theme-color" content="#1d6f42">
+  <!-- Tutti i percorsi sono RELATIVI (./...) per funzionare in locale, su GitHub Pages (sottopercorso) e su Vercel -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <nav class="appbar d-flex flex-wrap align-items-center gap-2 px-2 py-1">
+    <strong class="me-1">Mini-Foglio</strong>
+    <button id="btnDemo" class="btn btn-sm btn-light" type="button" title="Carica i casi di test 1-4 nelle colonne A-D">Esempi</button>
+    <button id="btnStress" class="btn btn-sm btn-light" type="button" title="Crea 100 formule che dipendono da Z1">Test 100 dipendenze</button>
+    <button id="btnCsv" class="btn btn-sm btn-light" type="button">Esporta CSV</button>
+    <button id="btnClear" class="btn btn-sm btn-outline-light" type="button">Svuota foglio</button>
+    <button id="btnInstall" class="btn btn-sm btn-warning d-none" type="button">Installa app</button>
+  </nav>
+
+  <div class="formula-bar input-group input-group-sm">
+    <span id="cellName" class="input-group-text cell-name">A1</span>
+    <span class="input-group-text fst-italic">fx</span>
+    <input id="formulaBar" class="form-control" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Barra della formula">
+  </div>
+
+  <main id="sheet">
+    <div id="corner"></div>
+    <div id="colhdr"><div id="colhdrIn"></div></div>
+    <div id="rowhdr"><div id="rowhdrIn"></div></div>
+    <div id="scroller" tabindex="0" aria-label="Griglia del foglio di calcolo">
+      <div id="space">
+        <div id="cells"></div>
+        <input id="editor" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" hidden>
+      </div>
+    </div>
+  </main>
+
+  <footer id="status" class="d-flex justify-content-between px-2">
+    <span id="statusMsg">Pronto</span>
+    <span id="netState"></span>
+  </footer>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
